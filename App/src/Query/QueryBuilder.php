@@ -1,7 +1,8 @@
 <?php
 namespace App\Query;
-use PDO;
 use App\Database\DB;
+use PDO;
+
 class QueryBuilder
 {
     protected $table;
@@ -15,17 +16,20 @@ class QueryBuilder
 
     public function table($table){
         $this->table = $table;
+
         return $this;
     }
 
     public function select(...$columns){
         $this->selects = $columns;
+
         return $this;
     }
 
     public function where($column, $operator, $value){
         $this->wheres[] = "$column $operator ?";
         $this->bindings[] = $value;
+
         return $this;
 
     }
@@ -36,16 +40,19 @@ class QueryBuilder
 
         $this->wheres[] = '('.implode(' OR ', $query->wheres). ')';
         $this->bindings = array_merge($this->bindings, $query->bindings);
+
         return $this;
     }
 
     public function orderBy($column, $direction = 'ASC'){
         $this->orders[] = "$column $direction";
+
         return $this;
     }
 
     public function groupBy(...$columns){
         $this->groupBy = $columns;
+
         return $this;
 
     }
@@ -53,6 +60,7 @@ class QueryBuilder
     public function having($column, $operator, $value){
         $this->having[] = "$column $operator ?";
         $this->bindings[] = $value;
+
         return $this;
 
     }
