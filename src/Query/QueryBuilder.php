@@ -48,7 +48,6 @@ class QueryBuilder
 
     public function where($column, $operator, $value)
     {
-        // If current group is not empty, add to it
         $this->addWhereClause($column, $operator, $value);
         return $this;
     }
@@ -59,11 +58,9 @@ class QueryBuilder
             throw new \Exception('Cannot use orWhere without a previous where clause.');
         }
 
-        // `OR` şərtini əlavə edin və parantez açın
         $this->addWhereClause('', '', '', true);
         $callback($this);
 
-        // `OR` şərtini bağlayın
         $this->whereClauses[] = ')';
 
         return $this;
@@ -95,7 +92,6 @@ class QueryBuilder
 
     public function toSql()
     {
-        // Handle aggregate functions
         if ($this->aggregateFunction) {
             if (strpos($this->query, 'SELECT') !== false) {
                 $this->query = preg_replace('/SELECT\s.*?\sFROM/', "SELECT $this->aggregateFunction($this->aggregateColumn) AS aggregate FROM", $this->query);
@@ -104,12 +100,10 @@ class QueryBuilder
             }
         }
 
-        // Append WHERE clauses
         if (!empty($this->whereClauses)) {
             $this->query .= ' ' . implode(' ', $this->whereClauses);
         }
 
-        // Append ORDER BY clause
         if ($this->orderByClause) {
             $this->query .= $this->orderByClause;
         }
