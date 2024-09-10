@@ -1,5 +1,7 @@
 <?php
-
+namespace App\Query;
+use PDO;
+use App\Database\DB;
 class QueryBuilder
 {
     protected $table;
@@ -21,7 +23,7 @@ class QueryBuilder
         return $this;
     }
 
-    public function wehere($column, $operator, $value){
+    public function where($column, $operator, $value){
         $this->wheres[] = "$column $operator ?";
         $this->bindings[] = $value;
         return $this;
@@ -55,6 +57,44 @@ class QueryBuilder
 
     }
 
+    public function toSql(){
+        $this->sql = 'SELECT' . implode(',', $this->selects).'FROM'.$this->table;
+
+        if($this->wheres){
+            $this->sql .= 'WHERE'.implode('AND', $this->wheres);
+        }
+
+        if($this->groupBy){
+            $this->sql .= 'GROUP BY'. implode(',', $this->groupBy);
+        }
+
+        if($this->having){
+            $this->sql .= 'HAVING' . implode('AND', $this->having);
+
+        }
+        if ($this->orders){
+            $this->sql .= 'ORDER BY' . implode(',', $this->orders);
+        }
+
+        return $this->sql;
+    }
+
+    public function get(){
+        $pdo = DB::getPdo();
+        $stmt = $pdo->prepare($this->toSql());
+        $stmt->excute($this->bindings);
+
+        return $stmt->fetchAll(PDO::FETCH_OBJ);
+    }
+
+    public function sum($expression){
+        $this->selects = ["SUM($expression)"];
+        $pdo = DB::getPdo();
+        $stmt = $pdo->prepare($this->toSql());
+        $stmt->excecute($this->bindings);
+
+        return $stmt->fetchColumn();
+    }
 
 
 
