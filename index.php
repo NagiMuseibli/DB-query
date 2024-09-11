@@ -7,13 +7,24 @@ use App\Query\DB;
 DbConnect::connect('localhost', 'kargolux', 'root', '');
 
 
-$sqlQuery =  DB::table('zamex_branches')
-    ->where('foreign_id', '=', 1)
-    ->select('id', 'name', 'address')
+$sqlQuery1 =  DB::table('package_statuses')
+    ->where('package_id', '=', 139)
+    ->select('id', 'user_id', 'status')
     ->orderBy('created_at')
+    ->limit(2)
+    ->offset(0)
     ->get();
 echo '<pre>';
-print_r($sqlQuery);
+print_r($sqlQuery1);
+echo '</pre>';
+echo '<br><br>';echo '<br><br>';
+$sqlQuery2 = DB::table('zamex_branches')
+    ->join('filials', 'zamex_branches.foreign_id', '=', 'filials.id')
+    ->select('zamex_branches.id', 'zamex_branches.name', 'zamex_branches.address')
+    ->where('zamex_branches.name', '=', 'Oğuz')
+    ->get();
+echo '<pre>';
+print_r($sqlQuery2);
 echo '</pre>';
 //echo "SQL Query: " . $sqlQuery . PHP_EOL;
 

@@ -14,12 +14,23 @@ class DB
     protected $whereClauses = [];
     protected $selectColumns = '*';
     protected $orderByClause = '';
-    protected $groupedClauses = [];
-    protected $isOrWhere = false;
-    protected  $isFirst = true;
+    protected $groupByClause = '';
+    protected $havingClauses = [];
+    protected $joinClauses = [];
+    protected $limitClause = '';
+    protected $offsetClause = '';
+
     public function __construct()
     {
         $this->query = '';
+    }
+
+    protected function executeQuery()
+    {
+        $pdo = DbConnect::getPdo();
+        $stmt = $pdo->prepare($this->query);
+        $stmt->execute($this->bindings);
+        return $stmt;
     }
 
     public static function table($table)
@@ -33,24 +44,17 @@ class DB
     protected function addWhereClause($column, $operator, $value, $isOrWhere = false)
     {
         $clause = "$column $operator ?";
-
-        if ($isOrWhere) {
-            if (empty($this->whereClauses)) {
-                $this->whereClauses[] = $clause;
-            } else {
-                $this->whereClauses[] = "OR ($clause)";
-            }
+        if (empty($this->whereClauses)) {
+            $this->whereClauses[] = $clause;
         } else {
-            if (empty($this->whereClauses)) {
-                $this->whereClauses[] = $clause;
+            if ($isOrWhere) {
+                $this->whereClauses[] = "OR ($clause)";
             } else {
                 $this->whereClauses[] = "AND ($clause)";
             }
         }
         $this->bindings[] = $value;
     }
-
-
 
     public function where($column, $operator, $value)
     {
@@ -88,6 +92,87 @@ class DB
         return $this;
     }
 
+    public function groupBy(...$columns)
+    {
+        $this->groupByClause = " GROUP BY " . implode(', ', $columns);
+        return $this;
+    }
+
+    public function having($column, $operator, $value)
+    {
+        $clause = "$column $operator ?";
+        $this->havingClauses[] = $clause;
+        $this->bindings[] = $value;
+        return $this;
+    }
+
+    public function join($table, $first, $operator, $second)
+    {
+        $this->joinClauses[] = "JOIN $table ON $first $operator $second";
+        return $this;
+    }
+
+    public function leftJoin($table, $first, $operator, $second)
+    {
+        $this->joinClauses[] = "LEFT JOIN $table ON $first $operator $second";
+        return $this;
+    }
+
+    public function limit($limit)
+    {
+        $this->limitClause = " LIMIT $limit";
+        return $this;
+    }
+
+    public function offset($offset)
+    {
+        $this->offsetClause = " OFFSET $offset";
+        return $this;
+    }
+
+
+
+    public function insert($data)
+    {
+        $columns = implode(', ', array_keys($data));
+        $placeholders = implode(', ', array_fill(0, count($data), '?'));
+        $this->query = "INSERT INTO $this->table ($columns) VALUES ($placeholders)";
+        $this->bindings = array_values($data);
+
+        $stmt = $this->executeQuery();
+        return DbConnect::getPdo()->lastInsertId();
+    }
+
+    public function update($data)
+    {
+        $setClause = implode(', ', array_map(function($key) {
+            return "$key = ?";
+        }, array_keys($data)));
+
+        $this->query = "UPDATE $this->table SET $setClause";
+
+        if (!empty($this->whereClauses)) {
+            $this->query .= ' WHERE ' . implode(' ', $this->whereClauses);
+        }
+
+        $this->bindings = array_merge(array_values($data), $this->bindings);
+
+        $stmt = $this->executeQuery();
+        return $stmt->rowCount();
+    }
+
+    public function delete()
+    {
+        $this->query = "DELETE FROM $this->table";
+
+        if (!empty($this->whereClauses)) {
+            $this->query .= ' WHERE ' . implode(' ', $this->whereClauses);
+        }
+
+        $stmt = $this->executeQuery();
+        return $stmt->rowCount();
+    }
+
     public function sum($column)
     {
         $this->aggregateFunction = 'SUM';
@@ -110,19 +195,38 @@ class DB
             $this->query = preg_replace('/SELECT\s.*?\sFROM/', "SELECT $this->aggregateFunction($this->aggregateColumn) AS aggregate FROM", $this->query);
         }
 
+        if (!empty($this->joinClauses)) {
+            $this->query .= ' ' . implode(' ', $this->joinClauses);
+        }
+
         if (!empty($this->whereClauses)) {
             $whereClause = implode(' ', $this->whereClauses);
             $whereClause = preg_replace('/\sAND\s\(/', ' (', $whereClause, 1);
             $this->query .= ' WHERE ' . $whereClause;
         }
 
+        if ($this->groupByClause) {
+            $this->query .= $this->groupByClause;
+        }
+
+        if (!empty($this->havingClauses)) {
+            $this->query .= ' HAVING ' . implode(' AND ', $this->havingClauses);
+        }
+
         if ($this->orderByClause) {
             $this->query .= $this->orderByClause;
         }
 
+        if ($this->limitClause) {
+            $this->query .= $this->limitClause;
+        }
+
+        if ($this->offsetClause) {
+            $this->query .= $this->offsetClause;
+        }
+
         return $this->query;
     }
-
 
     public function __toString()
     {
@@ -139,9 +243,7 @@ class DB
         echo "Bindings: ";
         print_r($this->bindings);
 
-        $pdo = DbConnect::getPdo();
-        $stmt = $pdo->prepare($this->query);
-        $stmt->execute($this->bindings);
+        $stmt = $this->executeQuery();
 
         if ($this->aggregateFunction) {
             return $stmt->fetchColumn();
@@ -149,6 +251,5 @@ class DB
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
-
-
 }
+
