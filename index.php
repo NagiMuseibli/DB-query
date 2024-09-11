@@ -43,7 +43,7 @@ echo "Sum result: " . $sumResult . PHP_EOL;
 
 /**
  *
- * toSql() metodu sql sorgusubu gosterir.
+ * toSql() metodu sql sorgusunun sintaksizini gosterir.
  * get() metodu sorugunu cap edir
  * sum() metodu sorugunu get() metodu istifade etmeden cap edir..
  */
