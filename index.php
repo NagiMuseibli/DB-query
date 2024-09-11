@@ -42,9 +42,18 @@ $sumResult = DB::table('packages')
 echo "Sum result: " . $sumResult . PHP_EOL;
 
 /**
- *
+ *TODO: Hazirlanmish Sql query metodlari
  * toSql() metodu sql sorgusunun sintaksizini gosterir.
  * get() metodu sorugunu cap edir
  * sum() metodu sorugunu get() metodu istifade etmeden cap edir..
+ * limit()
+ * offset()
+ * groupBy()
+ * having()
+ * join()
+ * leftJoin()
+ * insert()
+ * update()
+ * delete()
  */
 
