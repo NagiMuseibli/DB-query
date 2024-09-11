@@ -1,13 +1,13 @@
 <?php
-
 namespace App\Query;
 
-use App\Database\DB;
+use App\Database\DbConnect;
 use PDO;
 
-class QueryBuilder
+class DB
 {
     protected $query;
+    protected $table;
     protected $bindings = [];
     protected $aggregateFunction = null;
     protected $aggregateColumn = null;
@@ -16,34 +16,40 @@ class QueryBuilder
     protected $orderByClause = '';
     protected $groupedClauses = [];
     protected $isOrWhere = false;
-
+    protected  $isFirst = true;
     public function __construct()
     {
         $this->query = '';
     }
 
-    public function table($table)
+    public static function table($table)
     {
-        $this->query = "SELECT $this->selectColumns FROM $table";
-        return $this;
+        $instance = new self();
+        $instance->table = $table;
+        $instance->query = "SELECT $instance->selectColumns FROM $table";
+        return $instance;
     }
 
     protected function addWhereClause($column, $operator, $value, $isOrWhere = false)
     {
-        if (empty($this->whereClauses)) {
-            $this->whereClauses[] = "WHERE $column $operator ?";
-        } else {
-            if ($isOrWhere) {
-                if (end($this->whereClauses) !== 'OR (') {
-                    $this->whereClauses[] = "OR (";
-                }
-                $this->whereClauses[] = "$column $operator ?";
+        $clause = "$column $operator ?";
+
+        if ($isOrWhere) {
+            if (empty($this->whereClauses)) {
+                $this->whereClauses[] = $clause;
             } else {
-                $this->whereClauses[] = "AND $column $operator ?";
+                $this->whereClauses[] = "OR ($clause)";
+            }
+        } else {
+            if (empty($this->whereClauses)) {
+                $this->whereClauses[] = $clause;
+            } else {
+                $this->whereClauses[] = "AND ($clause)";
             }
         }
         $this->bindings[] = $value;
     }
+
 
 
     public function where($column, $operator, $value)
@@ -58,9 +64,8 @@ class QueryBuilder
             throw new \Exception('Cannot use orWhere without a previous where clause.');
         }
 
-        $this->addWhereClause('', '', '', true);
+        $this->whereClauses[] = 'OR (';
         $callback($this);
-
         $this->whereClauses[] = ')';
 
         return $this;
@@ -87,21 +92,28 @@ class QueryBuilder
     {
         $this->aggregateFunction = 'SUM';
         $this->aggregateColumn = $column;
-        return $this;
+        $pdo = DbConnect::getPdo();
+        $stmt = $pdo->prepare($this->toSql());
+        $stmt->execute($this->bindings);
+
+        return $stmt->fetchColumn();
+    }
+
+    public static function raw($expression)
+    {
+        return $expression;
     }
 
     public function toSql()
     {
         if ($this->aggregateFunction) {
-            if (strpos($this->query, 'SELECT') !== false) {
-                $this->query = preg_replace('/SELECT\s.*?\sFROM/', "SELECT $this->aggregateFunction($this->aggregateColumn) AS aggregate FROM", $this->query);
-            } else {
-                $this->query = "SELECT $this->aggregateFunction($this->aggregateColumn) AS aggregate FROM " . substr($this->query, 7);
-            }
+            $this->query = preg_replace('/SELECT\s.*?\sFROM/', "SELECT $this->aggregateFunction($this->aggregateColumn) AS aggregate FROM", $this->query);
         }
 
         if (!empty($this->whereClauses)) {
-            $this->query .= ' ' . implode(' ', $this->whereClauses);
+            $whereClause = implode(' ', $this->whereClauses);
+            $whereClause = preg_replace('/\sAND\s\(/', ' (', $whereClause, 1);
+            $this->query .= ' WHERE ' . $whereClause;
         }
 
         if ($this->orderByClause) {
@@ -111,13 +123,23 @@ class QueryBuilder
         return $this->query;
     }
 
+
+    public function __toString()
+    {
+        return $this->toSql();
+    }
+
     public function get()
     {
         if (empty($this->query)) {
             throw new \Exception('Query boş ola bilməz.');
         }
 
-        $pdo = DB::getPdo();
+        echo "SQL Query: " . $this->toSql() . "\n";
+        echo "Bindings: ";
+        print_r($this->bindings);
+
+        $pdo = DbConnect::getPdo();
         $stmt = $pdo->prepare($this->query);
         $stmt->execute($this->bindings);
 
@@ -127,4 +149,6 @@ class QueryBuilder
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+
 }

@@ -1,47 +1,39 @@
 <?php
 require 'vendor/autoload.php';
 
-use App\Database\DB;
-use App\Query\QueryBuilder;
+use App\Database\DbConnect;
+use App\Query\DB;
+
+DbConnect::connect('localhost', 'kargolux', 'root', '');
 
 
-
-DB::connect('localhost', 'kargolux', 'root', '');
-$queryBuilder = new QueryBuilder();
-$sqlQuery = $queryBuilder->table('zamex_branches')
+$sqlQuery =  DB::table('zamex_branches')
     ->where('foreign_id', '=', 1)
-    ->select('id', 'foreign_id', 'name', 'address')
+    ->select('id', 'name', 'address')
     ->orderBy('created_at')
-    ->toSql();
+    ->get();
+echo '<pre>';
+print_r($sqlQuery);
+echo '</pre>';
+//echo "SQL Query: " . $sqlQuery . PHP_EOL;
 
-echo "SQL Query: " . $sqlQuery . PHP_EOL;
-try {
-    $results = $queryBuilder->get();
-    foreach ($results as $result){
-        echo 'Name: '. $result['name'] . '<br>';
-    }
-//    print_r($results);
-} catch (Exception $e) {
-    echo "Error: " . $e->getMessage();
-}
 
 echo '<br><br>';
-//$sumQuery = $queryBuilder->table('packages')
-//    ->where('status', '=', 1)
-//    ->orWhere(function($query) {
-//        $query->where('cargo_total', '>', 4.5)
-//            ->where('cargo_weight', '>', 1);
-//    })
-//    ->select('id', 'cargo_total', 'cargo_weight')
-//    ->sum('cargo_total * cargo_weight')
+$sumResult = DB::table('packages')
+    ->where('status', '=', 1)
+    ->orWhere(function($query) {
+        $query->where('cargo_total', '>', 4.5)
+            ->where('cargo_weight', '>', 1);
+    })
 //    ->toSql();
-//
-//echo "SQL Query: " . $sumQuery . PHP_EOL;
-//
-//try {
-//    $sumResult = $queryBuilder->get();
-//    echo "Sum Result: " . $sumResult . PHP_EOL;
-//} catch (Exception $e) {
-//    echo "Error: " . $e->getMessage();
-//}
+    ->sum(DB::raw('cargo_total * cargo_weight'));
+//    ->toSql();
+echo "SQL Query: " . $sumResult . PHP_EOL;
+
+/**
+ *
+ * toSql() metodu sql sorgusubu gosterir.
+ * get() metodu sorugunu cap edir
+ * sum() metodu sorugunu get() metodu istifade etmeden cap edir..
+ */
 
