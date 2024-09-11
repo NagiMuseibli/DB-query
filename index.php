@@ -39,7 +39,7 @@ $sumResult = DB::table('packages')
 //    ->toSql();
     ->sum(DB::raw('cargo_total * cargo_weight'));
 //    ->toSql();
-echo "SQL Query: " . $sumResult . PHP_EOL;
+echo "Sum result: " . $sumResult . PHP_EOL;
 
 /**
  *
